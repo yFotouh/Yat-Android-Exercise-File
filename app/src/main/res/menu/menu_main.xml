@@ -1,0 +1,17 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/item1"
+        android:icon="@mipmap/ic_launcher_round"
+        android:title="Compose"
+        app:showAsAction="ifRoom">
+
+    </item>
+    <item
+        android:id="@+id/item2"
+        android:icon="@mipmap/ic_launcher"
+        android:title="Compose"
+        app:showAsAction="ifRoom">
+
+    </item>
+</menu>

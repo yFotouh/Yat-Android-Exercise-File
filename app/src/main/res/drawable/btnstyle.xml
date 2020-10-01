@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:example="http://schemas.android.com/apk/res-auto">
+    <!-- We make the pressed and focused selector items transparent so the ListView's own selector states show through. -->
+    <item android:drawable="@android:color/background_dark" android:state_pressed="true" />
+    <item android:drawable="@android:color/holo_red_dark" android:state_focused="true" />
+</selector>
