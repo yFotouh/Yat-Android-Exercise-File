@@ -2,19 +2,26 @@ package com.tests.yatapplication;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.Manifest;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.location.Location;
 import android.os.Bundle;
+import android.os.Looper;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -32,11 +39,41 @@ import java.util.ArrayList;
 import java.util.List;
 
 import androidx.appcompat.widget.Toolbar;
+import androidx.room.Room;
+
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MainActivity extends AppCompatActivity {
     Button btn;
     Button btn2;
     TextView textView;
+    boolean requestingLocationUpdates = true;
+    private LocationCallback locationCallback;
+    private GoogleMap mMap;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,11 +100,213 @@ public class MainActivity extends AppCompatActivity {
         // Sets the Toolbar to act as the ActionBar for this Activity window.
         // Make sure the toolbar exists in the activity and is not null
         setSupportActionBar(toolbar);
-
-
+//        useRoomDataBase();
+//        useVolleyApi();
+//        useRetrofitApi();
 //        webView();
 //        listview();
 //        newCode();
+//        if (checkLocationPermission())
+//            getLocation();
+        manageGoogleMaps();
+    }
+
+    private void manageGoogleMaps() {
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.map);
+        mapFragment.getMapAsync(new OnMapReadyCallback() {
+            @Override
+            public void onMapReady(GoogleMap googleMap) {
+                mMap = googleMap;
+
+                // Add a marker in Sydney and move the camera
+                LatLng sydney = new LatLng(-34, 151);
+                mMap.addMarker(new MarkerOptions()
+                        .position(sydney)
+                        .title("Marker in Sydney"));
+                mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
+
+            }
+        });
+
+    }
+
+    private void getLocation() {
+        locationCallback = new LocationCallback() {
+            @Override
+            public void onLocationResult(LocationResult locationResult) {
+                if (locationResult == null) {
+                    return;
+                }
+                for (Location location : locationResult.getLocations()) {
+                    Log.d("", "");
+                    textView.setText("Latitude :" + location.getLatitude() + '\n' +
+                            "Longitude : " + location.getLongitude()
+                    );
+                    // Update UI with location data
+                    // ...
+                }
+            }
+        };
+
+    }
+
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+//        if (requestingLocationUpdates) {
+//            startLocationUpdates();
+//        }
+    }
+
+    FusedLocationProviderClient fusedLocationClient;
+
+    private void startLocationUpdates() {
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        LocationRequest mLocationRequest = LocationRequest.create();
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+//        mLocationRequest.setExpirationDuration(500);
+        mLocationRequest.setNumUpdates(5);
+        fusedLocationClient.requestLocationUpdates(mLocationRequest,
+                locationCallback,
+                Looper.getMainLooper());
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+//        stopLocationUpdates();
+    }
+
+    private void stopLocationUpdates() {
+        fusedLocationClient.removeLocationUpdates(locationCallback);
+    }
+
+    public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
+
+    public boolean checkLocationPermission() {
+        if (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+
+            // Should we show an explanation?
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
+                    Manifest.permission.ACCESS_FINE_LOCATION)) {
+
+                // Show an explanation to the user *asynchronously* -- don't block
+                // this thread waiting for the user's response! After the user
+                // sees the explanation, try again to request the permission.
+                new AlertDialog.Builder(this)
+                        .setTitle("Location Permission")
+                        .setMessage("Location Permission")
+                        .setPositiveButton("ok", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialogInterface, int i) {
+                                //Prompt the user once explanation has been shown
+                                ActivityCompat.requestPermissions(MainActivity.this,
+                                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                                        MY_PERMISSIONS_REQUEST_LOCATION);
+                            }
+                        })
+                        .create()
+                        .show();
+
+
+            } else {
+                // No explanation needed, we can request the permission.
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                        MY_PERMISSIONS_REQUEST_LOCATION);
+            }
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+
+    private void useRetrofitApi() {
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl("http://dummy.restapiexample.com/api/v1/")
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+
+        TODOService service = retrofit.create(TODOService.class);
+        service.getEmployees().enqueue(new Callback<GetEmployeeResult>() {
+            @Override
+            public void onResponse(Call<GetEmployeeResult> call, retrofit2.Response<GetEmployeeResult> response) {
+                System.out.println("");
+            }
+
+            @Override
+            public void onFailure(Call<GetEmployeeResult> call, Throwable t) {
+                System.out.println("");
+            }
+        });
+        CreateEmployeeRequest createEmployeeRequest = new CreateEmployeeRequest();
+        createEmployeeRequest.age = 30;
+        createEmployeeRequest.name = "yasser";
+        createEmployeeRequest.salary = 3000;
+
+        service.createEmployee(createEmployeeRequest).enqueue(new Callback<CreateEmployeeResult>() {
+            @Override
+            public void onResponse(Call<CreateEmployeeResult> call, retrofit2.Response<CreateEmployeeResult> response) {
+                Log.d("", "");
+            }
+
+            @Override
+            public void onFailure(Call<CreateEmployeeResult> call, Throwable t) {
+                Log.e("", "");
+            }
+        });
+    }
+
+    private void useVolleyApi() {
+        // Instantiate the RequestQueue.
+        RequestQueue queue = Volley.newRequestQueue(this);
+        String url = "https://jsonplaceholder.typicode.com/todos/1";
+
+// Request a string response from the provided URL.
+        StringRequest stringRequest = new StringRequest(Request.Method.GET, url,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        try {
+                            JSONObject jObject = new JSONObject(response);
+                            String title = jObject.getString("title");
+                            textView.setText(title);
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                textView.setText("That didn't work!");
+            }
+        });
+
+// Add the request to the RequestQueue.
+        queue.add(stringRequest);
+
+    }
+
+    private void useRoomDataBase() {
+        AppDatabase db = Room.databaseBuilder(getApplicationContext(),
+                AppDatabase.class, "database-name").allowMainThreadQueries().build();
+//        User user = new User();
+//        user.lastName = "ahmed";
+//        user.firstName = "mahmoud";
+//        User user1 = new User();
+//        user1.lastName = "karim";
+//        user1.firstName = "mostafa";
+//
+//        db.userDao().insertAll(user, user1);
+        List<User> users = db.userDao().getAll();
+        for (int i = 0; i < users.size(); i++) {
+            Log.i("User", users.get(i).firstName);
+        }
     }
 
     private void readSharedPref() {
